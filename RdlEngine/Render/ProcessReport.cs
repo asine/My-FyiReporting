@@ -36,6 +36,7 @@ namespace fyiReporting.RDL
 	public enum OutputPresentationType
 	{
 		HTML,
+        RenderPdf_iTextSharp,
 		PDF,
         PDFOldStyle,
 		XML,
@@ -45,10 +46,12 @@ namespace fyiReporting.RDL
         CSV,
         RTF,
         Word,
-        Excel,
+        ExcelTableOnly,
+		Excel2007,
         TIF,
-        TIFBW                   // black and white tif
-	}
+        TIFBW,                   // black and white tif
+        Excel2003
+    }
 
 	[Serializable]
 	public class ProcessReport

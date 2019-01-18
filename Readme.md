@@ -4,6 +4,22 @@ If you have any question about Majorsilence Reporting or do you want to contribu
 
 https://groups.google.com/d/forum/myfyireporting
 
+
+|         |Linux |Windows |
+|---------|:------:|:------:|
+|**Release**|NA | [![Build status appveyor](https://ci.appveyor.com/api/projects/status/a44n015bli95rmpw?svg=true)](https://ci.appveyor.com/project/majorsilence/my-fyireporting) |
+
+# Documentation
+See the [projects wiki](https://github.com/majorsilence/My-FyiReporting/wiki).
+
+# Download
+
+See the [downloads page](https://github.com/majorsilence/My-FyiReporting/wiki/Downloads).
+
+Alternatively if you want keep up with the latest version you can always use Git
+
+    git clone https://github.com/majorsilence/My-FyiReporting.git
+
 # Introduction
 "FYIReporting Designer is a report and charting system based on Microsoft's Report Definition Language (RDL). 
 Tabular, free form, matrix, charts are fully supported. HTML, PDF, XML, .Net Control, and printing supported. 
@@ -21,22 +37,6 @@ Also check this [projects wiki](https://github.com/majorsilence/My-FyiReporting/
 
 Majorsilence Reporting is currently built with visual studio 2010 and 2012 and targets .net 4.0.  You can also run the build script in 
 the Release-Builds folder to build .net 3.5 (may be broken) and 4.0 packages.  
-
-# Download
-
-If you have [NuGet](http://nuget.org) installed, the easiest way to get started is to install Majorsilence Reporting via NuGet:
-
-This will setup My-FyiReporting in your project ready to use the viewers or designer.
-* PM> Install-Package My-FyiReporting.x86 
-
-If you prefer not to use NuGet and just want to download the latest release binaries get them at:
-
-  * **[http://files.majorsilence.com/myfyireporting/](http://files.majorsilence.com/myfyireporting/)**
-  * Also see the [downloads wiki page](https://github.com/majorsilence/My-FyiReporting/wiki/Downloads) for more details on the type of packages.
-
-Alternatively if you want keep up with the latest version you can always use Git
-
-    git clone https://github.com/majorsilence/My-FyiReporting.git
 
 # Development
 Majorsilence Reporting is developed with the following workflow:
@@ -56,6 +56,7 @@ See the wiki page [https://github.com/majorsilence/My-FyiReporting/wiki/Contribu
 ### Core Team
 
 * [majorsilence](https://github.com/majorsilence) (Peter Gill)
+* [Gankov](https://github.com/Gankov)
 
 
 ### Contributors
@@ -66,7 +67,6 @@ A big thanks to all of Majorsilence Reporting contributors:
 * [Geek648](https://github.com/Geek648)
 * [kobruleht](https://github.com/kobruleht)
 * [jzielke](https://github.com/jzielke)
-* [Gankov](https://github.com/Gankov)
 * [gam6itko](https://github.com/gam6itko)
 * [tsliang](https://github.com/tsliang)
 * [mohsenalikhani](https://github.com/mohsenalikhani)
@@ -111,7 +111,7 @@ A big thanks to all of Majorsilence Reporting contributors:
 
  RDL Compliance
 Report file format specifications can be obtained from microsoft.  I believe fyiReporting is currently mostly 
-compatiable with RDL 2005.  If you want to add more features see the specfications.
+compatible with RDL 2005.  If you want to add more features see the specfications.
 
 * RDL specifications: [http://msdn.microsoft.com/en-us/library/dd297486%28v=sql.100%29.aspx](http://msdn.microsoft.com/en-us/library/dd297486%28v=sql.100%29.aspx)
 * 2005 direct link: [http://download.microsoft.com/download/c/2/0/c2091a26-d7bf-4464-8535-dbc31fb45d3c/rdlNov05.pdf](http://download.microsoft.com/download/c/2/0/c2091a26-d7bf-4464-8535-dbc31fb45d3c/rdlNov05.pdf)

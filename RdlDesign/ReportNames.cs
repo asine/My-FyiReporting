@@ -22,11 +22,12 @@
 */
 using System;
 using System.Xml;
+using System.Linq;
 using System.Collections;
 using System.Collections.Generic;
 using System.Collections.Specialized;
 using System.Text.RegularExpressions;
-
+using fyiReporting.RdlDesign.Resources;
 
 namespace fyiReporting.RdlDesign
 {
@@ -326,22 +327,27 @@ namespace fyiReporting.RdlDesign
 			if (fNode == xNode)
 				return null;
 
-			if (fNode != null)
-				return "Duplicate name.";
+            if (fNode != null)
+                return DescriptionDuplicateNameError(name, fNode);
 
-			// Grouping; also restrict to not being same name as any group or dataset
-			if (xNode.Name == "Grouping")
+            // Grouping; also restrict to not being same name as any group or dataset
+            if (xNode.Name == "Grouping")
 			{
 				_Groupings.TryGetValue(name, out fNode);
 				if (fNode != null)
-					return "Duplicate name.";
+					return DescriptionDuplicateNameError(name, fNode);
                 List<string> dsets = new List<string>(this.DataSetNames);
 				if (dsets.IndexOf(name) >= 0)
-					return "Duplicate name.";
+					return "Duplicate name of the dataset :"+name;
 			}
 
 			return null;
 		}
+
+        private string DescriptionDuplicateNameError(string name, XmlNode fNode)
+        {
+            return String.Format(Strings.ReportNames_DescriptionDuplicateNameError, name, fNode.Name);
+        }
 
 		internal string GroupingNameCheck(XmlNode xNode, string name)
 		{
@@ -602,6 +608,8 @@ namespace fyiReporting.RdlDesign
 			StringCollection st = new StringCollection();
 			foreach (XmlNode f in fields.ChildNodes)
 			{
+				if (f.Attributes == null)
+					continue;
 				XmlAttribute xAttr = f.Attributes["Name"];
 				if (xAttr == null)
 					continue;
@@ -619,7 +627,39 @@ namespace fyiReporting.RdlDesign
 			return result;
 		}
 
-		internal string[] GetReportParameters(bool asExpression)
+
+
+        internal string GetReportParameterDefaultValue(string parameterExpression)
+        {
+            var root = _doc.DocumentElement;
+
+            XmlNode rNode = _doc.LastChild;
+            XmlNode rpsNode = DesignXmlDraw.FindNextInHierarchy(rNode, "ReportParameters");
+            if (rpsNode == null)
+                return null;
+
+            var parameterName = DesignerUtility.ExtractParameterNameFromParameterExpression(parameterExpression);
+
+            var parameter = rpsNode.ChildNodes.Cast<XmlNode>()
+                .FirstOrDefault(n => n.Attributes["Name"].Value == parameterName);
+
+            if (parameter == null)
+                //ERROR, parameter not found;
+                return null;
+
+            var defaultValue = parameter.ChildNodes.Cast<XmlNode>()
+                .FirstOrDefault(n => n.Name == "DefaultValue");
+            if (defaultValue == null)
+            {
+                // ERROR, no default value;
+                return null;
+            }
+
+            // selecting DefaultValue/Values/Value
+            return defaultValue.FirstChild.FirstChild.InnerText;
+        }
+
+        internal string[] GetReportParameters(bool asExpression)
 		{
 			XmlNode rNode = _doc.LastChild;
 			XmlNode rpsNode = DesignXmlDraw.FindNextInHierarchy(rNode, "ReportParameters");

@@ -5,23 +5,39 @@ namespace fyiReporting.RdlGtkViewer
 	public partial class ReportViewer
 	{
 		private global::Gtk.UIManager UIManager;
-		private global::Gtk.Action refreshAction;
-		private global::Gtk.Action PdfAction;
-		private global::Gtk.Action printAction;
-		private global::Gtk.Action ZoomOutAction;
-		private global::Gtk.Action ZoomInAction;
-		private global::Gtk.ToggleAction errorsAction;
-		private global::Gtk.VBox vbox;
-		private global::Gtk.HBox hboxHeader;
-		private global::Gtk.Toolbar toolbar;
-		private global::Gtk.HBox hbox;
-		private global::Gtk.VBox vboxParameters;
-		private global::Gtk.HPaned hpanedReport;
-		private global::Gtk.ScrolledWindow scrolledwindowPages;
-		private global::Gtk.VBox vboxPages;
-		private global::Gtk.ScrolledWindow scrolledwindowErrors;
-		private global::Gtk.TextView textviewErrors;
 		
+		private global::Gtk.Action refreshAction;
+		
+		private global::Gtk.Action saveAsAction;
+		
+		private global::Gtk.Action printAction;
+		
+		private global::Gtk.Action ZoomOutAction;
+		
+		private global::Gtk.Action ZoomInAction;
+		
+		private global::Gtk.ToggleAction errorsAction;
+		
+		private global::Gtk.VBox vbox;
+		
+		private global::Gtk.HBox hboxHeader;
+		
+		private global::Gtk.Toolbar toolbar;
+		
+		private global::Gtk.HBox hbox;
+		
+		private global::Gtk.VBox vboxParameters;
+		
+		private global::Gtk.HPaned hpanedReport;
+		
+		private global::Gtk.ScrolledWindow scrolledwindowPages;
+		
+		private global::Gtk.VBox vboxPages;
+		
+		private global::Gtk.ScrolledWindow scrolledwindowErrors;
+		
+		private global::Gtk.TextView textviewErrors;
+
 		protected virtual void Build ()
 		{
 			global::Stetic.Gui.Initialize (this);
@@ -32,9 +48,9 @@ namespace fyiReporting.RdlGtkViewer
 			this.refreshAction = new global::Gtk.Action ("refreshAction", null, null, "gtk-refresh");
 			this.refreshAction.IsImportant = true;
 			w2.Add (this.refreshAction, null);
-			this.PdfAction = new global::Gtk.Action ("PdfAction", global::Mono.Unix.Catalog.GetString ("_Pdf"), null, "PdfIcon");
-			this.PdfAction.ShortLabel = global::Mono.Unix.Catalog.GetString ("_Pdf");
-			w2.Add (this.PdfAction, null);
+			this.saveAsAction = new global::Gtk.Action ("saveAsAction", global::Mono.Unix.Catalog.GetString ("_Export"), global::Mono.Unix.Catalog.GetString ("Export as PDF, CSV, ASP, HTML, MHTML, XML, Excel"), "gtk-save-as");
+			this.saveAsAction.ShortLabel = global::Mono.Unix.Catalog.GetString ("_Export");
+			w2.Add (this.saveAsAction, null);
 			this.printAction = new global::Gtk.Action ("printAction", global::Mono.Unix.Catalog.GetString ("_Print"), null, "gtk-print");
 			this.printAction.ShortLabel = global::Mono.Unix.Catalog.GetString ("_Print");
 			w2.Add (this.printAction, null);
@@ -48,6 +64,7 @@ namespace fyiReporting.RdlGtkViewer
 			this.errorsAction.DrawAsRadio = true;
 			this.errorsAction.IsImportant = true;
 			this.errorsAction.ShortLabel = global::Mono.Unix.Catalog.GetString ("Show _Errors");
+			this.errorsAction.VisibleHorizontal = false;
 			w2.Add (this.errorsAction, null);
 			this.UIManager.InsertActionGroup (w2, 0);
 			this.WidthRequest = 0;
@@ -62,7 +79,7 @@ namespace fyiReporting.RdlGtkViewer
 			this.hboxHeader.Name = "hboxHeader";
 			this.hboxHeader.Spacing = 6;
 			// Container child hboxHeader.Gtk.Box+BoxChild
-			this.UIManager.AddUiFromString ("<ui><toolbar name='toolbar'><toolitem name='printAction' action='printAction'/><toolitem name='PdfAction' action='PdfAction'/><separator/><toolitem name='ZoomInAction' action='ZoomInAction'/><toolitem name='ZoomOutAction' action='ZoomOutAction'/><toolitem name='refreshAction' action='refreshAction'/><separator/><toolitem name='errorsAction' action='errorsAction'/></toolbar></ui>");
+			this.UIManager.AddUiFromString ("<ui><toolbar name='toolbar'><toolitem name='printAction' action='printAction'/><toolitem name='saveAsAction' action='saveAsAction'/><separator/><toolitem name='ZoomInAction' action='ZoomInAction'/><toolitem name='ZoomOutAction' action='ZoomOutAction'/><toolitem name='refreshAction' action='refreshAction'/><separator/><toolitem name='errorsAction' action='errorsAction'/></toolbar></ui>");
 			this.toolbar = ((global::Gtk.Toolbar)(this.UIManager.GetWidget ("/toolbar")));
 			this.toolbar.Name = "toolbar";
 			this.toolbar.ShowArrow = false;
@@ -93,7 +110,7 @@ namespace fyiReporting.RdlGtkViewer
 			this.hpanedReport = new global::Gtk.HPaned ();
 			this.hpanedReport.CanFocus = true;
 			this.hpanedReport.Name = "hpanedReport";
-			this.hpanedReport.Position = 455;
+			this.hpanedReport.Position = 364;
 			// Container child hpanedReport.Gtk.Paned+PanedChild
 			this.scrolledwindowPages = new global::Gtk.ScrolledWindow ();
 			this.scrolledwindowPages.CanFocus = true;
@@ -121,6 +138,8 @@ namespace fyiReporting.RdlGtkViewer
 			this.textviewErrors.WidthRequest = 200;
 			this.textviewErrors.CanFocus = true;
 			this.textviewErrors.Name = "textviewErrors";
+			this.textviewErrors.Editable = false;
+			this.textviewErrors.WrapMode = ((global::Gtk.WrapMode)(3));
 			this.scrolledwindowErrors.Add (this.textviewErrors);
 			this.hpanedReport.Add (this.scrolledwindowErrors);
 			global::Gtk.Paned.PanedChild w11 = ((global::Gtk.Paned.PanedChild)(this.hpanedReport [this.scrolledwindowErrors]));
@@ -141,7 +160,7 @@ namespace fyiReporting.RdlGtkViewer
 			this.textviewErrors.Hide ();
 			this.Hide ();
 			this.refreshAction.Activated += new global::System.EventHandler (this.OnRefreshActionActivated);
-			this.PdfAction.Activated += new global::System.EventHandler (this.OnPdfActionActivated);
+			this.saveAsAction.Activated += new global::System.EventHandler (this.OnPdfActionActivated);
 			this.printAction.Activated += new global::System.EventHandler (this.OnPrintActionActivated);
 			this.ZoomOutAction.Activated += new global::System.EventHandler (this.OnZoomOutActionActivated);
 			this.ZoomInAction.Activated += new global::System.EventHandler (this.OnZoomInActionActivated);

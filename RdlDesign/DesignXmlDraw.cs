@@ -20,19 +20,21 @@
    For additional information, email info@fyireporting.com or visit
    the website www.fyiReporting.com.
 */
+
+using fyiReporting.RDL;
+using fyiReporting.RdlDesign.Resources;
 using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Drawing.Imaging;
-using System.Windows.Forms;
-using System.IO;
-using System.Xml;
 using System.Globalization;
+using System.IO;
+using System.Linq;
 using System.Net;
-using fyiReporting.RDL;
-using fyiReporting.RdlDesign.Resources;
+using System.Windows.Forms;
+using System.Xml;
 
 namespace fyiReporting.RdlDesign
 {
@@ -47,12 +49,14 @@ namespace fyiReporting.RdlDesign
         readonly Color BANDBORDERCOLOR = Color.DimGray; //Josh: added for Band Border
         readonly BorderStyleEnum BANDBORDERSTYLE = BorderStyleEnum.Solid; //Josh: Band Border Style
         const float BANDBORDERWIDTH = 1f; //Josh: Band border width
-        readonly Color AREABACKCOLOR = Color.LightGray; //Josh: added for area background color (behind page) 
+        readonly Color AREABACKCOLOR = Color.LightGray; //Josh: added for area background color (behind page)
+		readonly Color OUTWORKAREACOLOR = Color.Azure; //out work area background color (on page, but in margin)
+		readonly Color OUTITEMCOLOR = Color.Salmon; //color of out work area parts of item 
 
 		const float RADIUS = 2.5f;
         readonly Color BANDCOLOR = Color.LightGray;
 		const int BANDHEIGHT = 12;              // height of band (e.g. body, pageheader, pagefooter) in pts
-		const float LEFTGAP = 10f; // keep a gap on the left size of the screen
+		const float LEFTGAP = 0f; // keep a gap on the left size of the screen
 		// Various page measurements that we keep
 		float rWidth, pHeight, pWidth;
 		float lMargin, rMargin, tMargin, bMargin;
@@ -65,6 +69,8 @@ namespace fyiReporting.RdlDesign
 		private ReportNames _ReportNames;	// holds the names of the report items
 		float DpiX;
 		float DpiY;
+
+		public string Folder { get; set; }
 
 		// During drawing these are set
 		Graphics g;
@@ -512,7 +518,12 @@ namespace fyiReporting.RdlDesign
 			return ReportNames.GetFields(dataSetName, asExpression);
 		}
 
-		internal string[] GetReportParameters(bool asExpression)
+        internal string GetReportParameterDefaultValue(string parameterExpression)
+        {
+            return ReportNames.GetReportParameterDefaultValue(parameterExpression);
+        }
+
+        internal string[] GetReportParameters(bool asExpression)
 		{
 			return ReportNames.GetReportParameters(asExpression);
 		}
@@ -1094,10 +1105,19 @@ namespace fyiReporting.RdlDesign
             // in the "off-paper" area.
             //White "Paper" 
 			StyleInfo si = new StyleInfo();
-            si.BackgroundColor = Color.White;
 
-            RectangleF b = new RectangleF(xLoc, yLoc + 1, /*PointsX(Width)*/(pWidth) /*+ _hScroll*/, /*height*/ ((height > TotalPageHeight /* - yLoc*/) ? TotalPageHeight/* - yLoc*/ : height));//displayHeight > 0 ? displayHeight : 0);
-            DrawBackground(b, si); 
+			// Entire Paper
+			si.BackgroundColor = OUTWORKAREACOLOR;
+			RectangleF b = new RectangleF(xLoc, yLoc + 1, /*PointsX(Width)*/(pWidth) /*+ _hScroll*/, /*height*/ ((height > TotalPageHeight /* - yLoc*/) ? TotalPageHeight/* - yLoc*/ : height));//displayHeight > 0 ? displayHeight : 0);
+			DrawBackground(b, si);
+
+			// Work area
+			si.BackgroundColor = Color.White;
+			b = new RectangleF(xLoc + lMargin, yLoc + 1, /*PointsX(Width)*/(pWidth - lMargin - rMargin) /*+ _hScroll*/, /*height*/ ((height > TotalPageHeight /* - yLoc*/) ? TotalPageHeight/* - yLoc*/ : height));//displayHeight > 0 ? displayHeight : 0);
+            DrawBackground(b, si);
+
+			//Edge of paper
+			DrawLine(Color.Gray, BorderStyleEnum.Solid, 1, pWidth, yLoc + 1, pWidth, yLoc + height);
             //End "Paper"
 
             // Josh:
@@ -1244,7 +1264,7 @@ namespace fyiReporting.RdlDesign
         {
             RectangleF rir = GetReportItemRect(xNode);
 
-            if (rir.Right + LEFTGAP <= r.Right)
+            if (rir.Right + LEFTGAP + lMargin <= r.Right)
             {
                 return rir;
             }
@@ -1870,24 +1890,116 @@ namespace fyiReporting.RdlDesign
 			}
 
 			StyleInfo si = new StyleInfo();
-		
-			si.BStyleBottom = si.BStyleLeft = si.BStyleTop = si.BStyleRight = BorderStyleEnum.Solid;
-			si.BWidthBottom = si.BWidthLeft = si.BWidthRight = si.BWidthTop = 1;
+
+            XmlNode parent = GetReportItemDataRegionContainer(xNode);
+         
+            if (parent != null)
+            {
+                RectangleF rect = GetRectangle(parent);
+                rect.X += lMargin;
+                rect.Y += BANDBORDERWIDTH;
+                DrawSelected(parent, rect);
+            }
+            si.BStyleBottom = si.BStyleLeft = si.BStyleTop = si.BStyleRight = BorderStyleEnum.Solid;
+            si.BWidthBottom = si.BWidthLeft = si.BWidthRight = si.BWidthTop = 1;
             // Josh: Changed to DimGray (personal preference)
             si.BColorBottom = si.BColorLeft = si.BColorRight = si.BColorTop = Color.DimGray; //Color.LightGray; 
-			DrawBorder(si, r);
 
-			DrawCircle(Color.Black, BorderStyleEnum.Solid, 1,
-				r.X - RADIUS, r.Y - RADIUS, RADIUS*2, true);  // top left
-			DrawCircle(Color.Black, BorderStyleEnum.Solid, 1,
-				r.X + r.Width - RADIUS, r.Y - RADIUS, RADIUS*2, true);  // top right
-			DrawCircle(Color.Black, BorderStyleEnum.Solid, 1,
-				r.X - RADIUS, r.Y + r.Height - RADIUS, RADIUS*2, true);  // bottom left
-			DrawCircle(Color.Black, BorderStyleEnum.Solid, 1, 
-				r.X + r.Width - RADIUS, r.Y + r.Height - RADIUS, RADIUS*2, true);  // bottom right
-		}
+			if (!IsDataRegion(xNode) || xNode.Name == "List")
+            {
+                DrawBorder(si, r);
+                DrawCircle(Color.Black, BorderStyleEnum.Solid, 1,
+                    r.X - RADIUS, r.Y - RADIUS, RADIUS * 2, true);  // top left
+                DrawCircle(Color.Black, BorderStyleEnum.Solid, 1,
+                    r.X + r.Width - RADIUS, r.Y - RADIUS, RADIUS * 2, true);  // top right
+                DrawCircle(Color.Black, BorderStyleEnum.Solid, 1,
+                    r.X - RADIUS, r.Y + r.Height - RADIUS, RADIUS * 2, true);  // bottom left
+                DrawCircle(Color.Black, BorderStyleEnum.Solid, 1,
+                    r.X + r.Width - RADIUS, r.Y + r.Height - RADIUS, RADIUS * 2, true);  // bottom right
+            }
+            else
+            {
+                if (xNode.Name == "Table")
+                {
+                    HighLightTableRegion(xNode, r);
+                }
+            
+            }
 
-		private void DrawSelectedLine(XmlNode xNode, RectangleF r)
+        }
+
+        private void HighLightTableRegion(XmlNode xNode,RectangleF r)
+        {
+            Color[] defaultTableGroupColors =
+            {
+                Color.LightBlue,Color.LightGreen,Color.LightYellow,Color.Pink,Color.Orange,Color.Aquamarine
+            };
+
+            int descBandWitdh = 100;
+            int descColumnsHeight = 10;
+
+            StyleInfo siDefault = new StyleInfo();
+            siDefault.BackgroundColor = Color.Aqua;
+            siDefault.FontFamily = "Arial";
+            siDefault.FontSize = 8;
+            siDefault.FontWeight = FontWeightEnum.Bold;
+            siDefault.BStyleBottom = siDefault.BStyleLeft = siDefault.BStyleRight = siDefault.BStyleTop = BorderStyleEnum.Solid;
+            siDefault.BColorBottom = siDefault.BColorLeft = siDefault.BColorRight = siDefault.BColorTop =  Color.Black;
+            
+            RectangleF bandPos = r;
+            bandPos.X = r.X + r.Width;
+            bandPos.Width = descBandWitdh;
+
+
+            StyleInfo si = (StyleInfo) siDefault.Clone();
+            Dictionary<string, Color> assignedGroupColors = new Dictionary<string, Color>();
+
+            Dictionary<string, List<XmlNode>> sections = GetTableSections(xNode);
+            int colorGroupIndex = 0;
+            foreach (var s in sections)
+            {
+                foreach (var p in s.Value)
+                {
+                    float h = GetSize(GetNamedChildNode(p, "Height").InnerText);
+                    si = (StyleInfo)siDefault.Clone();
+                    bandPos.Height = h;
+                    if (s.Key.StartsWith("G"))
+                    {
+                        int sepGroup = s.Key.IndexOf('_');
+                        string groupDesc = s.Key.Substring(sepGroup + 1);
+                        if (groupDesc.Length > 0)
+                        {
+                            Color groupColor;
+                            if (!assignedGroupColors.TryGetValue(groupDesc, out groupColor))
+                            {
+
+                                if (colorGroupIndex > defaultTableGroupColors.Length - 1)
+                                    groupColor = defaultTableGroupColors[defaultTableGroupColors.Length-1];
+                                else
+                                    groupColor = defaultTableGroupColors[colorGroupIndex];
+
+                                    assignedGroupColors.Add(groupDesc, groupColor);
+                                    colorGroupIndex++;
+                            }
+                            si.BackgroundColor = groupColor;
+                        }
+                    }
+                    DrawString(s.Key, si, bandPos);
+                    bandPos.Y += h;
+                }
+
+            }
+
+            //columns
+            bandPos = r;
+            bandPos.Y -= descColumnsHeight;
+            bandPos.Height = descColumnsHeight;
+            si = (StyleInfo)siDefault.Clone();
+            si.TextAlign = TextAlignEnum.Center;
+            DrawString("Columns", si, bandPos);
+
+        }
+        private void DrawSelectedLine(XmlNode xNode, RectangleF r)
 		{
 			PointF p1;
 			PointF p2;
@@ -1905,7 +2017,7 @@ namespace fyiReporting.RdlDesign
         {
             StyleInfo si = GetStyleInfo(xNode);
             RectangleF ri = GetOutOfBoundsRightReportItemRect(xNode, r);
-            si.BackgroundColor = AREABACKCOLOR;
+			si.BackgroundColor = OUTITEMCOLOR;
 
             if (ri.Right > r.Right)//(!r.Contains(ri))
             {
@@ -1999,78 +2111,184 @@ namespace fyiReporting.RdlDesign
 			}
 			return cols;
 		}
+        
+        private Dictionary<string, List<XmlNode>> GetTableSections(XmlNode xNode)
+        {
+            Dictionary<string, XmlNode> mainSections=new Dictionary<string, XmlNode>();
+            Dictionary<string, List<XmlNode>> resultSections = new Dictionary<string, List<XmlNode>>();
+            XmlNode tableNode;
 
-		private List<XmlNode> GetTableRows(XmlNode xNode)
-		{
+            mainSections.Add("Header", null);
+            mainSections.Add("Details", null);
+            mainSections.Add("Footer", null);
+            mainSections.Add("TableGroups", null);
+
+            foreach (XmlNode cNode in xNode)
+            {
+                if (cNode.NodeType != XmlNodeType.Element)
+                    continue;
+                if (mainSections.ContainsKey(cNode.Name))
+                {
+                    mainSections[cNode.Name] = cNode;
+                }
+           }
+
+           if (mainSections.TryGetValue("Header", out tableNode) && tableNode != null)
+           {
+                resultSections.Add("Header",GetTableRowsNodes(GetNamedChildNode(tableNode, "TableRows")));
+           }
+
+           if (mainSections.TryGetValue("TableGroups", out tableNode)&&tableNode!=null)
+           {
+                foreach(var tg in GetTableGroupRowsNodes(tableNode, "Header", (s) => "GH_" + s, false))
+                    resultSections.Add(tg.Key,tg.Value);
+
+           }
+
+           if (mainSections.TryGetValue("Details", out tableNode) && tableNode != null)
+           {
+                resultSections.Add("Details", GetTableRowsNodes(GetNamedChildNode(tableNode, "TableRows")));
+           }
+
+           if (mainSections.TryGetValue("TableGroups", out tableNode) && tableNode != null)
+           {
+                foreach (var tg in GetTableGroupRowsNodes(tableNode, "Footer", (s) => "GF_" + s, true))
+                    resultSections.Add(tg.Key, tg.Value);
+
+           }
+
+           if (mainSections.TryGetValue("Footer", out tableNode) && tableNode != null)
+           {
+               resultSections.Add("Footer", GetTableRowsNodes(GetNamedChildNode(tableNode, "TableRows")));
+           }
+
+
+            return resultSections;
+
+        }
+        
+        private List<XmlNode> GetTableRows(XmlNode xNode)
+        {
             List<XmlNode> trs = new List<XmlNode>();
 
-			XmlNode tblGroups=null, header=null, footer=null, details=null;
+            XmlNode tblGroups = null, header = null, footer = null, details = null;
 
-			// Find the major groups that have TableRows
-			foreach (XmlNode cNode in xNode)
-			{
-				if (cNode.NodeType != XmlNodeType.Element)
-					continue;
-				switch (cNode.Name)
-				{
-					case "Header":
-						header = cNode;
-						break;
-					case "Details":
-						details = cNode;
-						break;
-					case "Footer":
-						footer = cNode;
-						break;
-					case "TableGroups":
-						tblGroups = cNode;
-						break;			
-				}
-			}
-			GetTableRowsAdd(GetNamedChildNode(header, "TableRows"), trs);
-			GetTableGroupsRows(tblGroups, trs, "Header");
-			GetTableRowsAdd(GetNamedChildNode(details, "TableRows"), trs);
-			GetTableGroupsRows(tblGroups, trs, "Footer");
-			GetTableRowsAdd(GetNamedChildNode(footer, "TableRows"), trs);
+            // Find the major groups that have TableRows
+            foreach (XmlNode cNode in xNode)
+            {
+                if (cNode.NodeType != XmlNodeType.Element)
+                    continue;
+                switch (cNode.Name)
+                {
+                    case "Header":
+                        header = cNode;
+                        break;
+                    case "Details":
+                        details = cNode;
+                        break;
+                    case "Footer":
+                        footer = cNode;
+                        break;
+                    case "TableGroups":
+                        tblGroups = cNode;
+                        break;
+                }
+            }
+            GetTableRowsAdd(GetNamedChildNode(header, "TableRows"), trs);
+            GetTableGroupsRows(tblGroups, trs, "Header", false);
+            GetTableRowsAdd(GetNamedChildNode(details, "TableRows"), trs);
+            GetTableGroupsRows(tblGroups, trs, "Footer", true);
+            GetTableRowsAdd(GetNamedChildNode(footer, "TableRows"), trs);
 
-			return trs;
-		}
+            return trs;
+        }
 
-        private void GetTableGroupsRows(XmlNode xNode, List<XmlNode> trs, string name)
-		{
-			if (xNode == null)
-				return;
-			foreach (XmlNode xNodeLoop in xNode.ChildNodes)
-			{
-				if (xNodeLoop.NodeType == XmlNodeType.Element && 
-					xNodeLoop.Name == "TableGroup")
-				{
-					XmlNode n = GetNamedChildNode(xNodeLoop, name);
-					if (n == null)
-						continue;
-					n = GetNamedChildNode(n, "TableRows");
-					if (n == null)
-						continue;
+        private void GetTableGroupsRows(XmlNode xNode, List<XmlNode> trs, string name, bool reverse)
+        {
+            if (xNode == null)
+                return;
 
-					GetTableRowsAdd(n, trs);
-				}
-			}
+			IEnumerable<XmlNode> childs;
+			if (reverse) //Need for correct footer order in nested groups
+				childs = xNode.ChildNodes.Cast<XmlNode>().Reverse();
+			else
+				childs = xNode.ChildNodes.Cast<XmlNode>();
 
-		}
+            foreach (XmlNode xNodeLoop in childs)
+            {
+                if (xNodeLoop.NodeType == XmlNodeType.Element &&
+                    xNodeLoop.Name == "TableGroup")
+                {
+                    XmlNode n = GetNamedChildNode(xNodeLoop, name);
+                    if (n == null)
+                        continue;
+                    n = GetNamedChildNode(n, "TableRows");
+                    if (n == null)
+                        continue;
 
+                    GetTableRowsAdd(n, trs);
+                }
+            }
+
+        }
+
+        private Dictionary<string,List<XmlNode>> GetTableGroupRowsNodes(XmlNode xNode,string sectionGroup,Func<string,string> groupNameKey, bool reverse)
+        {
+            Dictionary<string, List<XmlNode>> result = new Dictionary<string, List<XmlNode>>();
+
+			IEnumerable<XmlNode> childs; 
+			if (reverse) //Need for correct footer order in nested groups
+				childs = xNode.ChildNodes.Cast<XmlNode>().Reverse();
+			else
+				childs = xNode.ChildNodes.Cast<XmlNode>();
+
+            foreach (XmlNode xNodeLoop in childs)
+            {
+                if (xNodeLoop.NodeType == XmlNodeType.Element &&
+                    xNodeLoop.Name == "TableGroup")
+                {
+
+                    XmlNode groupNode = GetNamedChildNode(xNodeLoop, "Grouping");
+                    XmlAttribute groupName = groupNode.Attributes["Name"];
+                    XmlNode headerNode = GetNamedChildNode(xNodeLoop, sectionGroup);
+                    if (headerNode != null)
+                    {
+                        result.Add( groupNameKey(groupName.InnerText), GetTableRowsNodes(GetNamedChildNode(headerNode, "TableRows")));
+                    }
+                }
+            }
+            return result;
+        }
         private void GetTableRowsAdd(XmlNode xNode, List<XmlNode> trs)
-		{
-			if (xNode == null)
-				return;
-			foreach (XmlNode xNodeLoop in xNode.ChildNodes)
-			{
-				if (xNodeLoop.NodeType == XmlNodeType.Element && 
-					xNodeLoop.Name == "TableRow")
-				{
-					trs.Add(xNodeLoop);
-				}
-			}
-		}
+        {
+            if (xNode == null)
+                return;
+            foreach (XmlNode xNodeLoop in xNode.ChildNodes)
+            {
+                if (xNodeLoop.NodeType == XmlNodeType.Element &&
+                    xNodeLoop.Name == "TableRow")
+                {
+                    trs.Add(xNodeLoop);
+                }
+            }
+        }
+        private List<XmlNode> GetTableRowsNodes(XmlNode xNode)
+        {
+            if (xNode == null)
+                return null;
+
+            List<XmlNode> result = new List<XmlNode>();
+
+            foreach (XmlNode xNodeLoop in xNode.ChildNodes)
+            {
+                if (xNodeLoop.NodeType == XmlNodeType.Element &&
+                    xNodeLoop.Name == "TableRow")
+                {
+                    result.Add( xNodeLoop);
+                }
+            }
+            return result;
+        }
 
         private float GetTableRowsHeight(List<XmlNode> trs)
 		{
@@ -3302,7 +3520,7 @@ namespace fyiReporting.RdlDesign
 
 			float bh = 0, hh = 0, fh = 0;
 
-			_HitRect = new RectangleF(PointsX(r.X)+_hScroll, PointsY(r.Y) + _vScroll,
+			_HitRect = new RectangleF(PointsX(r.X)+_hScroll - lMargin, PointsY(r.Y) + _vScroll,
 										PointsX(r.Width), PointsY(r.Height));
 
 			// If selected count changes then we need to repaint
@@ -3419,64 +3637,54 @@ namespace fyiReporting.RdlDesign
         /// <returns>True if the line intersects the rectangle, false otherwise</returns>
         private bool AdvancedLineCollision(PointF p1, PointF p2, RectangleF _hr)
         {
-            //Pre-Calculations to save cycles, used in AdvancedLineCollisionDetails
-            float calcSegment1 = (p1.X * p2.Y) - (p1.Y * p2.X);
-            float calcX1_X2 = (p1.X - p2.X);
-            float calcY1_Y2 = (p1.Y - p2.Y);
-
             //Test Top-Left to Bottom-Left
             PointF p3 = new PointF(_hr.Left, _hr.Top);
             PointF p4 = new PointF(_hr.Left, _hr.Bottom);
-            if (AdvancedLineCollisionDetails(calcSegment1, calcX1_X2, calcY1_Y2, p3, p4))
+            if (IsIntersectingLineSegments(p1, p2, p3, p4))
                 return true;
 
             //Test Top-Left to Top-Right
             p4 = new PointF(_hr.Right, _hr.Top);
-            if (AdvancedLineCollisionDetails(calcSegment1, calcX1_X2, calcY1_Y2, p3, p4))
+            if (IsIntersectingLineSegments(p1, p2, p3, p4))
                 return true;
 
             //Test Top-Right to Bottom-Right
             p3 = new PointF(_hr.Right, _hr.Bottom);
-            if (AdvancedLineCollisionDetails(calcSegment1, calcX1_X2, calcY1_Y2, p3, p4))
+            if (IsIntersectingLineSegments(p1, p2, p3, p4))
                 return true;
 
             //Test Bottom-Right to Bottom-Left
             p4 = new PointF(_hr.Left, _hr.Bottom);
-            if (AdvancedLineCollisionDetails(calcSegment1, calcX1_X2, calcY1_Y2, p3, p4))
+            if (IsIntersectingLineSegments(p1, p2, p3, p4))
                 return true;
 
             return false;
         }
 
         /// <summary>
-        /// Performs the actual test of one line segment against another
+        /// Test intersecting two lines
         /// </summary>
-        /// <param name="segment1">The first segment of the formula, calculated prior</param>
-        /// <param name="xMinus">The x1 minus x2 segment of the formula, calculated prior</param>
-        /// <param name="yMinus">The y1 minus y2 segment of the formula, calculated prior</param>
-        /// <param name="p3">The beginning point of the line to test from the rectangle</param>
-        /// <param name="p4">The ending point of the line to test from the rectangle</param>
-        /// <returns>True if the lines intersect, false otherwise</returns>
-        private bool AdvancedLineCollisionDetails(float segment1, float xMinus, float yMinus, PointF p3, PointF p4)
+        /// <param name="a">Start line1</param>
+        /// <param name="b">End line1</param>
+        /// <param name="c">Start line2</param>
+        /// <param name="d">End line2</param>
+        /// <returns></returns>
+        static bool IsIntersectingLineSegments(PointF a, PointF b, PointF c, PointF d)
         {
+            float denominator = ((b.X - a.X) * (d.Y - c.Y)) - ((b.Y - a.Y) * (d.X - c.X));
+            float numerator1 = ((a.Y - c.Y) * (d.X - c.X)) - ((a.X - c.X) * (d.Y - c.Y));
+            float numerator2 = ((a.Y - c.Y) * (b.X - a.X)) - ((a.X - c.X) * (b.Y - a.Y));
 
-            float calcSection2 = (p3.X * p4.Y) - (p3.Y * p4.X);
-            float calcSectionDenom = (xMinus * (p3.Y - p4.Y)) - (yMinus * (p3.X - p4.X));
+            // Detect coincident lines (has a problem, read below)
+            if (denominator == 0) return numerator1 == 0 && numerator2 == 0;
 
-            float x = (
-            ((segment1 * (p3.X - p4.X)) - (xMinus * calcSection2))
-            / calcSectionDenom
-            );
-            float y = (
-            ((segment1 * (p3.Y - p4.Y)) - (yMinus * calcSection2))
-            / calcSectionDenom
-            );
+            float r = numerator1 / denominator;
+            float s = numerator2 / denominator;
 
-            return _HitRect.Contains(x, y);
+            return (r >= 0 && r <= 1) && (s >= 0 && s <= 1);
+        }
 
-        } 
-
-		private void SelectInList(XmlNode xNode, RectangleF r)
+        private void SelectInList(XmlNode xNode, RectangleF r)
 		{
 			RectangleF rif = GetReportItemRect(xNode, r);
 			if (!rif.IntersectsWith(_HitRect))
@@ -3667,7 +3875,7 @@ namespace fyiReporting.RdlDesign
 
 			float bh = 0, hh = 0, fh = 0;
 
-			_HitPoint = new PointF(PointsX(p.X)+_hScroll, PointsY(p.Y) + _vScroll);
+			_HitPoint = new PointF(PointsX(p.X)+_hScroll - lMargin, PointsY(p.Y) + _vScroll);
 
 			// Check for hit in the header
 			XmlNode hn =GetNamedChildNode(phNode, "Height");
@@ -5773,20 +5981,27 @@ namespace fyiReporting.RdlDesign
 				
 				// Need to create a column for each spaned column
 				int colSpan = Convert.ToInt32(GetElementValue(tcell, "ColSpan", "1"));
-				XmlNode styleNode = DesignXmlDraw.FindNextInHierarchy(tcell, "ReportItems", "Textbox", "Style");
-				for (int ci=0; ci < colSpan; ci++)
-				{
-					XmlElement tbox = rDoc.CreateElement("Textbox");
-					ReportNames.GenerateName(tbox);
-					ris.AppendChild(tbox);
 
-					XmlElement vnode = rDoc.CreateElement("Value");
-					vnode.InnerText = "";
-					tbox.AppendChild(vnode);
-					if (styleNode != null)
-						tbox.AppendChild(styleNode.CloneNode(true));
-				}
-			}
+                // add ColSpan to match the source row
+                if (colSpan > 1)
+                {
+                    XmlElement colSpanNode = rDoc.CreateElement("ColSpan");
+                    colSpanNode.InnerText = colSpan.ToString();
+                    ntcell.AppendChild(colSpanNode);
+                }
+
+                XmlNode styleNode = DesignXmlDraw.FindNextInHierarchy(tcell, "ReportItems", "Textbox", "Style");
+                XmlElement tbox = rDoc.CreateElement("Textbox");
+                ReportNames.GenerateName(tbox);
+                ris.AppendChild(tbox);
+
+                XmlElement vnode = rDoc.CreateElement("Value");
+                vnode.InnerText = "";
+                tbox.AppendChild(vnode);
+                if (styleNode != null)
+                    tbox.AppendChild(styleNode.CloneNode(true));
+
+            }
 
 			return true;
 		}

@@ -29,9 +29,11 @@ using System.Data;
 using System.Drawing.Printing;
 using System.IO;
 using System.Xml;
+using EncryptionProvider;
 using fyiReporting.RDL;
 using fyiReporting.RdlDesign.Resources;
 using fyiReporting.RdlViewer;
+using EncryptionProvider.String;
 
 namespace fyiReporting.RdlDesign
 {
@@ -134,9 +136,12 @@ namespace fyiReporting.RdlDesign
             get { return rdlDesigner.CurrentCh; }
         }
 
-        internal string DesignTab
+        internal DesignTabs DesignTab
         {
-            get { return rdlDesigner.DesignTab; }
+			get
+			{
+				return rdlDesigner.DesignTab; 
+			}
             set { rdlDesigner.DesignTab = value; }
         }
 
@@ -192,11 +197,32 @@ namespace fyiReporting.RdlDesign
             return FileSave(file, rdl);
         }
 
+        private String doPossibleEncryption(Uri file, String rdl)
+        {
+            String extension = Path.GetExtension(file.LocalPath);
+            if (extension.Equals(".encrypted"))
+            {
+                StringEncryption enc = new StringEncryption(Prompt.ShowDialog("Please enter passkey", "Passkey?"));
+                try
+                {
+                    rdl = enc.Encrypt(rdl);
+                }
+                catch (Exception)
+                {
+                    MessageBox.Show(Properties.Resources.MDIChild_doPossibleEncryption_Unable_to_encrypt_file_);
+                }
+                
+            }
+            return rdl;
+        }
+
+
         private bool FileSave(Uri file, string rdl)
         {
             bool bOK = true;
             try
             {
+                rdl = doPossibleEncryption(file, rdl);
                 using (StreamWriter writer = new StreamWriter(file.LocalPath))
                 {
                     writer.Write(rdl);
@@ -242,7 +268,8 @@ namespace fyiReporting.RdlDesign
                 case OutputPresentationType.Word:
                     sfd.Filter = Strings.MDIChild_Export_DOC;
                     break;
-                case OutputPresentationType.Excel:
+                case OutputPresentationType.ExcelTableOnly:
+                case OutputPresentationType.Excel2007:
                     sfd.Filter = Strings.MDIChild_Export_Excel;
                     break;
                 case OutputPresentationType.HTML:
@@ -318,6 +345,7 @@ namespace fyiReporting.RdlDesign
                     Text = sfd.FileName;
                     Tab.Text = Path.GetFileName(sfd.FileName);
                     _SourceFile = new Uri(sfd.FileName);
+					DrawCtl.Folder = Path.GetDirectoryName(sfd.FileName);
                     Tab.ToolTipText = sfd.FileName;
                     return true;
                 }
@@ -353,9 +381,30 @@ namespace fyiReporting.RdlDesign
             set
             {
                 _SourceFile = value;
+                
                 string rdl = GetRdlSource();
                 this.rdlDesigner.SetRdlText(rdl == null ? "" : rdl);
             }
+        }
+
+        private String doPossibleDecryption(String rdl)
+        {
+
+            if (Path.GetExtension(_SourceFile.LocalPath).Equals(".encrypted"))
+            {
+                
+                try
+                {
+                    StringEncryption enc = new StringEncryption(Prompt.ShowDialog("Please enter the passkey", "Passkey?"));
+                    rdl = enc.Decrypt(rdl);
+                }
+                catch (Exception)
+                {
+                    MessageBox.Show(Properties.Resources.MDIChild_doPossibleDecryption_Incorrect_passkey_entered_);
+                }
+            }
+
+            return rdl;
         }
 
         public string SourceRdl
@@ -378,6 +427,8 @@ namespace fyiReporting.RdlDesign
                 if (fs != null)
                     fs.Close();
             }
+
+            prog = doPossibleDecryption(prog);
 
             return prog;
         }

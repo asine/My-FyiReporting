@@ -44,7 +44,7 @@ namespace fyiReporting.RdlDesign
 	/// <summary>
 	/// Static utility classes used in the Rdl Designer
 	/// </summary>
-	internal class DesignerUtility
+	internal static class DesignerUtility
 	{
 		static internal Color ColorFromHtml(string sc, Color dc)
 		{
@@ -324,8 +324,25 @@ namespace fyiReporting.RdlDesign
                 if (dp == null)
                     return false;
                 connection = dp.InnerText;
+
+                if (connection.StartsWith("="))
+                {
+                    connection = d.GetReportParameterDefaultValue(connection);
+                }
             }
             return true;
+        }
+
+        public static string ExtractParameterNameFromParameterExpression(string parameterExpression)
+        {
+            return parameterExpression
+                // syntax 1
+                .Replace("=Parameters!", "")
+                .Replace(".Value", "")
+                // syntax 2
+                .Replace("={?", "")
+                .Replace("}", "")
+                ;
         }
 
         static internal List<SqlColumn> GetSqlColumns(DesignXmlDraw d, string ds, string sql)
@@ -339,6 +356,52 @@ namespace fyiReporting.RdlDesign
             IList parameters=null;
 
 			return GetSqlColumns(dataProvider, connection, sql, parameters);
+		}
+
+		static internal List<SqlColumn> GetSqlColumns(DesignXmlDraw d, string ds, string sql, DataTable parameters)
+		{
+			string dataProvider;
+			string connection;
+
+			if (!GetConnnectionInfo(d, ds, out dataProvider, out connection))
+				return null;
+
+            List<SqlColumn> cols = new List<SqlColumn>();
+
+			try
+			{
+				// Open up a connection
+				using (IDbConnection cnSQL = RdlEngineConfig.GetConnection(dataProvider, connection))
+				{
+					if (cnSQL == null)
+						return cols;
+
+					cnSQL.Open();
+					IDbCommand cmSQL = cnSQL.CreateCommand();
+					cmSQL.CommandText = sql;
+					AddParameters(cmSQL, parameters);
+					using (IDataReader dr = cmSQL.ExecuteReader(CommandBehavior.SchemaOnly))
+					{
+						for (int i = 0; i < dr.FieldCount; i++)
+						{
+							SqlColumn sc = new SqlColumn();
+							sc.Name = dr.GetName(i).TrimEnd('\0');
+							sc.DataType = dr.GetFieldType(i);
+							cols.Add(sc);
+						}
+					}
+				}
+			}
+			catch (SqlException sqle)
+			{
+				MessageBox.Show(sqle.Message, Strings.DesignerUtility_Show_SQLError);
+			}
+			catch (Exception e)
+			{
+				MessageBox.Show(e.InnerException == null? e.Message:e.InnerException.Message, Strings.DesignerUtility_Show_Error);
+			}
+
+			return cols;
 		}
 
         static internal List<SqlColumn> GetSqlColumns(string dataProvider, string connection, string sql, IList parameters)
@@ -753,6 +816,28 @@ namespace fyiReporting.RdlDesign
 			return t;
 		}
 
+		static private void AddParameters(IDbCommand cmSQL, DataTable parameters)
+		{
+			if (parameters == null || parameters.Rows.Count <= 0)
+				return;
+
+			foreach (DataRow param in parameters.Rows)
+			{
+				string paramName;
+
+				// force the name to start with @
+				if (((string)param[0])[0] == '@')
+					paramName = (string)param[0];
+				else
+					paramName = "@" + (string)param[0];
+
+				IDbDataParameter dp = cmSQL.CreateParameter();
+				dp.ParameterName = paramName;
+				//Perhaps for some databases need fill values, for MySQL works wihtout it
+				cmSQL.Parameters.Add(dp);
+			}
+		}
+
 		static private void AddParameters(IDbCommand cmSQL, IList parameters)
 		{
 			if (parameters == null || parameters.Count <= 0)
@@ -1080,7 +1165,7 @@ namespace fyiReporting.RdlDesign
 		internal string Label;
 	}
 
-	internal class StaticLists
+	internal static class StaticLists
 	{
 		/// <summary>
 		/// Names of colors to put into lists
@@ -1386,8 +1471,8 @@ namespace fyiReporting.RdlDesign
 
         static public readonly string[] OperatorList = new string[] { 
                                 " & ", " + "," - "," * "," / "," mod ", 
-								" and ", " or ", 
-								" = ", " != ", " > ", " >= ", " < ", " <= "	};
+								" and ", " or ", " !", 
+								" = ", " != ", " > ", " >= ", " < ", " <= "};
 
 		/// <summary>
 		/// Names of functions with pseudo arguments
@@ -1460,5 +1545,26 @@ namespace fyiReporting.RdlDesign
         static public readonly string[] GradientList = new string[] {
         "None", "LeftRight", "TopBottom", "Center", "DiagonalLeft",
         "DiagonalRight", "HorizontalCenter", "VerticalCenter"};
+
+		//Josh: 6:22:10 Added to place the start and end shortcut "caps" on the fields.
+		public static List<string> ArrayToFormattedList(IEnumerable<string> array, string frontCap, string endCap)
+		{
+			List<string> returnList = new List<string>(array);
+
+			returnList.ForEach(
+			delegate(string item)
+			{
+				returnList[returnList.IndexOf(item)] =
+				item.StartsWith("=") ?
+				string.Format("{0}{1}{2}",
+				frontCap,
+				item.Split('!')[1].Replace(".Value", string.Empty),
+				endCap)
+				: item;
+			});
+
+			return returnList;
+		}
+
 	}
 }

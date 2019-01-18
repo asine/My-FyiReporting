@@ -37,7 +37,7 @@ namespace fyiReporting.RDL
 	public class RSize
 	{
 
-        internal const decimal PARTS_PER_INCH = 2450;   //24.5 mm/inch
+        internal const decimal PARTS_PER_INCH = 2540;   //25.4 mm/inch
         internal const decimal PARTS_PER_CM = 1000;     //10 mm/cm
         internal const decimal PARTS_PER_MM = 100;
         internal const decimal PARTS_PER_POINT = (decimal)(PARTS_PER_INCH / fyiReporting.RDL.Utility.Measurement.POINTSIZE_M);
@@ -135,6 +135,11 @@ namespace fyiReporting.RDL
             RSize rs = new RSize(null, v);
             return rs.Points;
         }
+
+		internal RSize(int normalizedSize)
+		{
+			_Size = normalizedSize;
+		}
 
 		internal RSize(ReportDefn r, XmlNode xNode):this(r, xNode.InnerText)
 		{
@@ -286,6 +291,20 @@ namespace fyiReporting.RDL
 
                 return _Original; 
             }
-        }
+		}
+
+		#region operators
+
+		public static RSize operator +(RSize arg1, RSize arg2)
+		{
+			return new RSize(arg1.Size + arg2.Size);
+		}
+
+		public static RSize operator -(RSize arg1, RSize arg2)
+		{
+			return new RSize(arg1.Size - arg2.Size);
+		}
+
+		#endregion
 	}
 }

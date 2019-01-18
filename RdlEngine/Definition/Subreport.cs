@@ -272,9 +272,10 @@ namespace fyiReporting.RDL
 				_ReportName[0] == Path.AltDirectorySeparatorChar)
 				name = _ReportName;
 			else 
-				name = folder + Path.DirectorySeparatorChar + _ReportName;
+				name = Path.Combine (folder, _ReportName);
 
-			name = name + ".rdl";			// TODO: shouldn't necessarily require this extension
+			if(!Path.HasExtension (name))
+				name = Path.ChangeExtension (name, ".rdl");
 
 			// Load and Compile the report
 			RDLParser rdlp;
@@ -285,6 +286,12 @@ namespace fyiReporting.RDL
 				prog = GetRdlSource(name);
 				rdlp =  new RDLParser(prog);
 				rdlp.Folder = folder;
+				if(OwnerReport.OverwriteInSubreport)
+				{
+					rdlp.OverwriteConnectionString = OwnerReport.OverwriteConnectionString;
+					rdlp.OverwriteInSubreport = OwnerReport.OverwriteInSubreport;
+				}
+
 				r = rdlp.Parse(OwnerReport.GetObjectNumber());
 				OwnerReport.SetObjectNumber(r.ReportDefinition.GetObjectNumber());
 				if (r.ErrorMaxSeverity > 0) 

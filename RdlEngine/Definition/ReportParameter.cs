@@ -267,7 +267,7 @@ namespace fyiReporting.RDL
             foreach (object v in vs)
             {
                 object rtv;
-                if (!AllowBlank && _dt == TypeCode.String && (string)v == "")
+                if (!AllowBlank && _dt == TypeCode.String && v.ToString() == "")
                 {
                     string err = string.Format("Empty string isn't allowed for {0}.", Name.Nm);
                     if (rpt == null)
@@ -302,8 +302,10 @@ namespace fyiReporting.RDL
 		{
 			// remove any commas, currency symbols (internationalized)
 			NumberFormatInfo nfi = NumberFormatInfo.CurrentInfo;
-			newv = newv.Replace(nfi.NumberGroupSeparator, "");
-			newv = newv.Replace(nfi.CurrencySymbol, "");
+			if(!String.IsNullOrEmpty(nfi.NumberGroupSeparator))
+				newv = newv.Replace(nfi.NumberGroupSeparator, "");
+			if (!String.IsNullOrEmpty(nfi.CurrencySymbol))
+				newv = newv.Replace(nfi.CurrencySymbol, "");
 			return newv;
 		}
 

@@ -1,43 +1,61 @@
+#!/usr/bin/env bash
+set -e # exit on first error
+set -u # exit on using unset variable
+
 # Platform optios: "AnyCPU", "x64", "AnyCPU"
 # /p:Configuration="Debug" or "Release"
 
+CURRENTPATH=`pwd`
+VERSION_FULL_LINE=$(grep -F "AssemblyVersion" "$CURRENTPATH/../RdlEngine/AssemblyInfo.cs")
+VERSION_WITH_ASTERIK=$(echo $VERSION_FULL_LINE | awk -F\" '{print $(NF-1)}')
+VERSION="${VERSION_WITH_ASTERIK%??}"
 
-# ************* Begin AnyCPU *********************************************
+# ************* Begin AnyCPU .NET 4*********************************************
 # Seems to be the only option that matter on linux
+nuget restore "../MajorsilenceReporting-Linux.sln"
+xbuild "../MajorsilenceReporting-Linux.sln" /toolsversion:4.0 /p:Configuration="Release";Platform="Any CPU"
 
-xbuild "../DataProviders/DataProviders.sln" /toolsversion:4.0 /p:Configuration="Release";Platform="AnyCPU" /t:clean;rebuild /m:4
-# xbuild "../pwd/../OracleSP/OracleSp.sln" /toolsversion:4.0 /p:Configuration="Release";Platform="AnyCPU" /t:clean;rebuild /m:4
-xbuild "../RdlAsp/RdlAsp.sln" /toolsversion:4.0 /p:Configuration="Release";Platform="AnyCPU" /t:clean;rebuild /m:4
-xbuild "../RdlCmd/RdlCmd.sln" /toolsversion:4.0 /p:Configuration="Release";Platform="AnyCPU" /t:clean;rebuild /m:4
-xbuild "../RdlCri/RdlCri.sln" /toolsversion:4.0 /p:Configuration="Release";Platform="AnyCPU" /t:clean;rebuild /m:4
-xbuild "../RdlDesign/RdlDesign.sln" /toolsversion:4.0 /p:Configuration="Release";Platform="AnyCPU" /t:clean;rebuild /m:4
-xbuild "../RdlDesktop/RdlDesktop.sln" /toolsversion:4.0 /p:Configuration="Release";Platform="AnyCPU" /t:clean;rebuild /m:4
-xbuild "../RdlEngine/RdlEngine.sln" /toolsversion:4.0 /p:Configuration="Release";Platform="AnyCPU" /t:clean;rebuild /m:4
-xbuild "../RdlMapFile/RdlMapFile.sln" /toolsversion:4.0 /p:Configuration="Release";Platform="AnyCPU" /t:clean;rebuild /m:4
-xbuild "../RdlViewer/RdlViewer.sln" /toolsversion:4.0 /p:Configuration="Release";Platform="AnyCPU" /t:clean;rebuild /m:4
+rm -rf ./build-output/majorsilence-reporting-build-dot-net-4-AnyCPU
+mkdir -p ./build-output/majorsilence-reporting-build-dot-net-4-AnyCPU
 
-rm -rf ./majorsilence-reporting-build-dot-net-4-AnyCPU
-mkdir ./majorsilence-reporting-build-dot-net-4-AnyCPU
+cp ../DataProviders/bin/Release/DataProviders.dll ./build-output/majorsilence-reporting-build-dot-net-4-AnyCPU/DataProviders.dll 
+cp ../DataProviders/bin/Release/DataProviders.xml ./build-output/majorsilence-reporting-build-dot-net-4-AnyCPU/DataProviders.xml 
+cp ../RdlAsp/bin/Release/RdlAsp.dll ./build-output/majorsilence-reporting-build-dot-net-4-AnyCPU/RdlAsp.dll 
+cp ../RdlAsp/bin/Release/RdlAsp.xml ./build-output/majorsilence-reporting-build-dot-net-4-AnyCPU/RdlAsp.xml 
+cp ../RdlCmd/bin/Release/RdlCmd.exe ./build-output/majorsilence-reporting-build-dot-net-4-AnyCPU/RdlCmd.exe 
+cp ../RdlCri/bin/Release/RdlCri.dll ./build-output/majorsilence-reporting-build-dot-net-4-AnyCPU/RdlCri.dll 
+cp ../RdlCri/bin/Release/RdlCri.xml ./build-output/majorsilence-reporting-build-dot-net-4-AnyCPU/RdlCri.xml 
+cp ../RdlDesign/bin/Release/RdlDesigner.exe ./build-output/majorsilence-reporting-build-dot-net-4-AnyCPU/RdlDesigner.exe 
+cp ../RdlDesktop/bin/Release/RdlDesktop.exe ./build-output/majorsilence-reporting-build-dot-net-4-AnyCPU/RdlDesktop.exe 
+cp ../RdlDesktop/bin/Release/config.xml ./build-output/majorsilence-reporting-build-dot-net-4-AnyCPU/config.xml 
+cp ../RdlEngine/bin/Release/RdlEngine.dll ./build-output/majorsilence-reporting-build-dot-net-4-AnyCPU/RdlEngine.dll 
+cp ../RdlEngine/bin/Release/RdlEngine.xml ./build-output/majorsilence-reporting-build-dot-net-4-AnyCPU/RdlEngine.xml 
+cp ../RdlEngine/bin/Release/ICSharpCode.SharpZipLib.dll ./build-output/majorsilence-reporting-build-dot-net-4-AnyCPU/ICSharpCode.SharpZipLib.dll  
+copy "../packages/iTextSharp-LGPL.4.1.6/lib/iTextSharp.dll" ./build-output/majorsilence-reporting-build-dot-net-4-AnyCPU/iTextSharp.dll 
+cp ../RdlEngine/bin/Release/RdlEngineConfig.xml ./build-output/majorsilence-reporting-build-dot-net-4-AnyCPU/RdlEngineConfig.xml 
+cp ../RdlEngine/bin/Release/RdlEngineConfig.Linux.xml ./build-output/majorsilence-reporting-build-dot-net-4-AnyCPU/RdlEngineConfig.Linux.xml 
+cp ../RdlMapFile/bin/Release/RdlMapFile.exe ./build-output/majorsilence-reporting-build-dot-net-4-AnyCPU/RdlMapFile.exe 
+cp ../RdlViewer/bin/Release/RdlViewer.dll ./build-output/majorsilence-reporting-build-dot-net-4-AnyCPU/RdlViewer.dll 
+cp ../RdlViewer/bin/Release/RdlViewer.xml ./build-output/majorsilence-reporting-build-dot-net-4-AnyCPU/RdlViewer.xml
+cp ../RdlViewer/RdlReader/bin/Release/RdlReader.exe ./build-output/majorsilence-reporting-build-dot-net-4-AnyCPU/RdlReader.exe 
+copy "../packages/ZXing.Net.0.14.0.1/lib/net40/zxing.dll" ./build-output/majorsilence-reporting-build-dot-net-4-AnyCPU/zxing.dll
+copy "../packages/ZXing.Net.0.14.0.1/lib/net40/zxing.presentation.dll" ./build-output/majorsilence-reporting-build-dot-net-4-AnyCPU/zxing.presentation.dll
+cp ../LibRdlCrossPlatformViewer/bin/Release/LibRdlCrossPlatformViewer.dll ./build-output/majorsilence-reporting-build-dot-net-4-AnyCPU/LibRdlCrossPlatformViewer.dll
+cp ../LibRdlCrossPlatformViewer/bin/Release/LibRdlCrossPlatformViewer.xml ./build-output/majorsilence-reporting-build-dot-net-4-AnyCPU/LibRdlCrossPlatformViewer.xml
+cp "../References/dot net 4/Xwt.dll" ./build-output/majorsilence-reporting-build-dot-net-4-AnyCPU/Xwt.dll
+cp "../References/dot net 4/Xwt.Gtk.dll" ./build-output/majorsilence-reporting-build-dot-net-4-AnyCPU/Xwt.Gtk.dll
+cp "../References/dot net 4/Xwt.WPF.dll" ./build-output/majorsilence-reporting-build-dot-net-4-AnyCPU/Xwt.WPF.dll
 
-cp ../DataProviders/bin/Release/DataProviders.dll ./majorsilence-reporting-build-dot-net-4-AnyCPU/DataProviders.dll 
-# copy ../OracleSp/bin/Release/OracleSp.dll ./majorsilence-reporting-build-dot-net-4-AnyCPU/OracleSp.dll 
-cp ../RdlAsp/bin/Release/RdlAsp.dll ./majorsilence-reporting-build-dot-net-4-AnyCPU/RdlAsp.dll 
-cp ../RdlCmd/bin/Release/RdlCmd.exe ./majorsilence-reporting-build-dot-net-4-AnyCPU/RdlCmd.exe 
-cp ../RdlCri/bin/Release/RdlCri.dll ./majorsilence-reporting-build-dot-net-4-AnyCPU/RdlCri.dll 
-cp ../RdlDesign/bin/Release/RdlDesigner.exe ./majorsilence-reporting-build-dot-net-4-AnyCPU/RdlDesigner.exe 
-cp ../RdlDesktop/bin/Release/RdlDesktop.exe ./majorsilence-reporting-build-dot-net-4-AnyCPU/RdlDesktop.exe 
-cp ../RdlDesktop/bin/Release/config.xml ./majorsilence-reporting-build-dot-net-4-AnyCPU/config.xml 
-cp ../RdlEngine/bin/Release/RdlEngine.dll ./majorsilence-reporting-build-dot-net-4-AnyCPU/RdlEngine.dll 
-cp ../RdlEngine/bin/Release/ICSharpCode.SharpZipLib.dll ./majorsilence-reporting-build-dot-net-4-AnyCPU/ICSharpCode.SharpZipLib.dll 
-cp "../References/dot net 4/Mono.Security.dll" ./majorsilence-reporting-build-dot-net-4-AnyCPU/Mono.Security.dll 
-cp "../References/dot net 4/Npgsql.dll" ./majorsilence-reporting-build-dot-net-4-AnyCPU/Npgsql.dll 
-cp "../References/dot net 4/itextsharp.dll" ./majorsilence-reporting-build-dot-net-4-AnyCPU/itextsharp.dll 
-cp ../RdlEngine/bin/Release/RdlEngineConfig.xml ./majorsilence-reporting-build-dot-net-4-AnyCPU/RdlEngineConfig.xml 
-cp ../RdlMapFile/bin/Release/RdlMapFile.exe ./majorsilence-reporting-build-dot-net-4-AnyCPU/RdlMapFile.exe 
-cp ../RdlViewer/bin/Release/RdlViewer.dll ./majorsilence-reporting-build-dot-net-4-AnyCPU/RdlViewer.dll 
-cp ../RdlViewer/RdlReader/bin/Release/RdlReader.exe ./majorsilence-reporting-build-dot-net-4-AnyCPU/RdlReader.exe 
-cp "../References/dot net 3.5/zxing.dll" ./majorsilence-reporting-build-dot-net-4-x86/zxing.dll
+mkdir -p ./build-output/majorsilence-reporting-build-dot-net-4-AnyCPU/ru-RU
+cp ../RdlDesign/bin/Release/ru-RU/RdlDesigner.resources.dll ./build-output/majorsilence-reporting-build-dot-net-4-AnyCPU/ru-RU/RdlDesigner.resources.dll
+cp ../RdlDesktop/bin/Release/ru-RU/RdlDesktop.resources.dll ./build-output/majorsilence-reporting-build-dot-net-4-AnyCPU/ru-RU/RdlDesktop.resources.dll
+cp ../RdlEngine/bin/Release/ru-RU/RdlEngine.resources.dll ./build-output/majorsilence-reporting-build-dot-net-4-AnyCPU/ru-RU/RdlEngine.resources.dll
+cp ../RdlMapFile/bin/Release/ru-RU/RdlMapFile.resources.dll ./build-output/majorsilence-reporting-build-dot-net-4-AnyCPU/ru-RU/RdlMapFile.resources.dll
+cp ../RdlViewer/bin/Release/ru-RU/RdlViewer.resources.dll ./build-output/majorsilence-reporting-build-dot-net-4-AnyCPU/ru-RU/RdlViewer.resources.dll
+cp ../RdlViewer/RdlReader/bin/Release/ru-RU/RdlReader.resources.dll ./build-output/majorsilence-reporting-build-dot-net-4-AnyCPU/ru-RU/RdlReader.resources.dll
 
-zip -r majorsilence-reporting-build-dot-net-4-AnyCPU.zip majorsilence-reporting-build-dot-net-4-AnyCPU/
+cd build-output	
+zip -r "$VERSION-majorsilence-reporting-build-dot-net-4-AnyCPU.zip" majorsilence-reporting-build-dot-net-4-AnyCPU/
+cd ..
 
-# ************* End AnyCPU *********************************************
+# ************* End AnyCPU .NET 4*********************************************

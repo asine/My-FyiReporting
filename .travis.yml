@@ -1,9 +1,0 @@
-language: c
- 
-install:
-  - sudo apt-get install mono-devel mono-gmcs mono-dmcs nunit-console libpoppler-cil xvfb
- 
-script:
-  - xbuild CI.proj
-  - nunit-console ./ReportTests/bin/Debug/ReportTests.dll -exclude Integration,NotWorkingOnMono
-

@@ -20,16 +20,18 @@
    For additional information, email info@fyireporting.com or visit
    the website www.fyiReporting.com.
 */
+using fyiReporting.RDL;
+using ScintillaNET;
 using System;
-using System.Drawing;
 using System.Collections;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Drawing;
+using System.Reflection;
+using System.Text;
 using System.Windows.Forms;
 using System.Xml;
-using System.Text;
-using System.Reflection;
-using fyiReporting.RDL;
+using System.Linq;
 
 namespace fyiReporting.RdlDesign
 {
@@ -59,6 +61,10 @@ namespace fyiReporting.RdlDesign
         // design draw 
         private bool _Color;				// true if color list should be displayed
 
+		RdlScriptLexer rdlLexer = new RdlScriptLexer();
+
+		string resultExpression = null; //It workaround System.AccessViolationException geting from Scintilla after form closed
+
         internal DialogExprEditor(DesignXmlDraw dxDraw, string expr, XmlNode node) :
             this(dxDraw, expr, node, false)
         {
@@ -73,8 +79,7 @@ namespace fyiReporting.RdlDesign
             //
             InitializeComponent();
 
-			if(expr != null)
-				tbExpr.Text = expr.Replace("\r\n", "\n").Replace("\n", Environment.NewLine);
+			ConfigureScintillaStyle(scintilla1);
 
             // Fill out the fields list 
             string[] fields = null;
@@ -94,9 +99,59 @@ namespace fyiReporting.RdlDesign
                 }
             }
             BuildTree(fields);
+			FillLexerByFields(_Draw);
+
+			if (expr != null)
+				scintilla1.Text = expr.Replace("\r\n", "\n").Replace("\n", Environment.NewLine);
 
             return;
         }
+
+		private void ConfigureScintillaStyle(ScintillaNET.Scintilla scintilla)
+		{
+			var selectionColor = Color.FromArgb(255, 192, 192, 192);
+			// Reset the styles
+			scintilla.StyleResetDefault();
+			scintilla.StyleClearAll();
+
+			// Set the XML Lexer
+			scintilla.Lexer = Lexer.Container;
+			scintilla.StyleNeeded += scintilla_StyleNeeded;
+
+            scintilla.Styles[(int)RdlScriptLexer.Style.Default].ForeColor = Color.Black;
+			scintilla.Styles[(int)RdlScriptLexer.Style.Identifier].ForeColor = Color.Black;
+			scintilla.Styles[(int)RdlScriptLexer.Style.Error].ForeColor = Color.Red;
+			scintilla.Styles[(int)RdlScriptLexer.Style.Error].Underline = true;
+			scintilla.Styles[(int)RdlScriptLexer.Style.Number].ForeColor = Color.OrangeRed;
+			scintilla.Styles[(int)RdlScriptLexer.Style.String].ForeColor = Color.Brown;
+			scintilla.Styles[(int)RdlScriptLexer.Style.Method].ForeColor = Color.Blue;
+			scintilla.Styles[(int)RdlScriptLexer.Style.AggrMethod].ForeColor = Color.Blue;
+			scintilla.Styles[(int)RdlScriptLexer.Style.AggrMethod].Bold = true;
+			scintilla.Styles[(int)RdlScriptLexer.Style.UserInfo].ForeColor = Color.BlueViolet;
+			scintilla.Styles[(int)RdlScriptLexer.Style.Globals].ForeColor = Color.BlueViolet;
+			scintilla.Styles[(int)RdlScriptLexer.Style.Parameter].ForeColor = Color.Violet;
+			scintilla.Styles[(int)RdlScriptLexer.Style.Field].ForeColor = Color.DodgerBlue;
+		}
+
+		void scintilla_StyleNeeded(object sender, StyleNeededEventArgs e)
+		{
+			var startPos = scintilla1.GetEndStyled();
+			var endPos = e.Position;
+
+			rdlLexer.StyleText(scintilla1, startPos, endPos);
+		}
+
+		void FillLexerByFields(DesignXmlDraw dxDraw)
+		{
+			var fields = new List<string>();
+			foreach (var dataSet in dxDraw.DataSetNames)
+			{
+				var datasetFields = dxDraw.GetFields((string)dataSet, false);
+				if(datasetFields != null)
+					fields.AddRange(datasetFields);
+			}
+			rdlLexer.SetFields(fields);
+		}
 
         void BuildTree(string[] flds)
         {
@@ -110,6 +165,8 @@ namespace fyiReporting.RdlDesign
             InitGlobals();
             // Fields - only when a dataset is specified
             InitFields(flds);
+			// Fields - is missing
+			InitFieldsIsMissing(flds);
             // Report parameters
             InitReportParameters();
             // Handle the functions
@@ -139,39 +196,19 @@ namespace fyiReporting.RdlDesign
             }
         }
 
-        //Josh: 6:22:10 Added to place the start and end shortcut "caps" on the fields.
-        List<string> ArrayToFormattedList(IEnumerable<string> array, string frontCap, string endCap)
-        {
-            List<string> returnList = new List<string>(array);
-
-            returnList.ForEach(
-            delegate(string item)
-            {
-                returnList[returnList.IndexOf(item)] =
-                item.StartsWith("=") ?
-                string.Format("{0}{1}{2}",
-                frontCap,
-                item.Split('!')[1].Replace(".Value", string.Empty),
-                endCap)
-                : item;
-            });
-
-            return returnList;
-        }
-
         // Josh: 6:22:10 Begin Init Methods.
         // Methods have been changed to use InitTreeNodes
         // and ArrayToFormattedList methods
         // Initializes the user functions
         void InitUsers()
         {
-            List<string> users = ArrayToFormattedList(StaticLists.UserList, "{!", "}");
+            List<string> users = StaticLists.ArrayToFormattedList(StaticLists.UserList, "{!", "}");
             InitTreeNodes("User", users);
         }
         // Initializes the Globals
         void InitGlobals()
         {
-            List<string> globals = ArrayToFormattedList(StaticLists.GlobalList, "{@", "}");
+            List<string> globals = StaticLists.ArrayToFormattedList(StaticLists.GlobalList, "{@", "}");
             InitTreeNodes("Globals", globals);
         }
         // Initializes the database fields
@@ -179,10 +216,20 @@ namespace fyiReporting.RdlDesign
         {
             if (flds != null && flds.Length > 0)
             {
-                List<string> fields = ArrayToFormattedList(flds, "{", "}");
+                List<string> fields = StaticLists.ArrayToFormattedList(flds, "{", "}");
                 InitTreeNodes("Fields", fields);
             }
         }
+		// Initializes the database fields is missing
+		void InitFieldsIsMissing(string[] flds)
+		{
+			if (flds != null && flds.Length > 0)
+			{
+				List<string> fields = StaticLists.ArrayToFormattedList(flds, "Fields!", ".IsMissing");
+				InitTreeNodes("Check for null", fields);
+				//fieldsKeys.AddRange(fields);
+			}
+		}
         // Initializes the aggregate functions
         void InitAggrFunctions()
         {
@@ -210,8 +257,9 @@ namespace fyiReporting.RdlDesign
 
             if (ps != null && ps.Length != 0)
             {
-                List<string> parameters = ArrayToFormattedList(ps, "{?", "}");
+                List<string> parameters = StaticLists.ArrayToFormattedList(ps, "{?", "}");
                 InitTreeNodes("Parameters", parameters);
+				rdlLexer.SetParameters(StaticLists.ArrayToFormattedList(ps, "", ""));
             }
         }
 
@@ -452,7 +500,7 @@ namespace fyiReporting.RdlDesign
 
         public string Expression
         {
-            get { return tbExpr.Text; }
+            get { return resultExpression != null ? resultExpression : scintilla1.Text; }
         }
 
         private void bCopy_Click(object sender, System.EventArgs e)
@@ -471,11 +519,20 @@ namespace fyiReporting.RdlDesign
             else
                 t = node.Parent.Text + "." + node.Text;
 
-            if (tbExpr.Text.Length == 0)
+            if (scintilla1.TextLength == 0)
                 t = "=" + t;
-            tbExpr.SelectedText = t;
+            scintilla1.ReplaceSelection(t);
         }
 
+		private void tvOp_DoubleClick(object sender, EventArgs e)
+		{
+			bCopy.PerformClick();
+		}
+
+		private void bOK_Click(object sender, EventArgs e)
+		{
+			resultExpression = scintilla1.Text;
+		}
     }
 
 }

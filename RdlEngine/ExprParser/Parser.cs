@@ -70,7 +70,7 @@ namespace fyiReporting.RDL
 		private NameLookup idLookup=null;
         private List<ICacheData> _DataCache;
 		private bool _InAggregate;
-        private List<FunctionField> _FieldResolve;
+		private DataSetDefn inAggregateDataSet = null;
 		private bool _NoAggregate=false;
 
 		/// <summary>
@@ -457,32 +457,30 @@ namespace fyiReporting.RDL
 			if (curToken.Type != TokenTypes.LPAREN) switch (firstPart)
 			{
 				case "Fields":
-					Field f = idLookup.LookupField(method);
-                    if (f == null && !this._InAggregate)
-                    {
-                        throw new ParserException(string.Format(Strings.Parser_ErrorP_FieldNotFound, method));
-                    }
-					if (thirdPart == null || thirdPart == "Value")
+					Field f = null;
+
+					if (inAggregateDataSet != null)
 					{
+						f = inAggregateDataSet.Fields == null ? null : inAggregateDataSet.Fields[method];
+						if (f == null)
+							throw new ParserException(string.Format(Strings.Parser_ErrorP_FieldNotInDataSet, method, inAggregateDataSet.Name.Nm));
+					}
+					else
+					{
+						f = idLookup.LookupField(method);
 						if (f == null)
 						{
-                            FunctionField ff;
-                            result = ff = new FunctionField(method);
-							this._FieldResolve.Add(ff);
+							throw new ParserException(string.Format(Strings.Parser_ErrorP_FieldNotFound, method));
 						}
-						else
-							result = new FunctionField(f);	
+					}
+
+					if (thirdPart == null || thirdPart == "Value")
+					{
+						result = new FunctionField(f);	
 					}
 					else if (thirdPart == "IsMissing")
 					{
-						if (f == null)
-						{
-                            FunctionField ff;
-							result = ff = new FunctionFieldIsMissing(method);
-							this._FieldResolve.Add(ff);
-						}
-						else
-							result = new FunctionFieldIsMissing(f);
+						result = new FunctionFieldIsMissing(f);
 					}
 					else
 						throw new ParserException(string.Format(Strings.Parser_ErrorP_FieldSupportsValueAndIsMissing, method));
@@ -563,7 +561,38 @@ namespace fyiReporting.RDL
 				throw new ParserException(string.Format(Strings.Parser_ErrorP_AggregateCannotNestedInAnotherAggregate, method));
 			_InAggregate = isAggregate;
 			if (_InAggregate)
-				_FieldResolve = new List<FunctionField>();
+			{
+				int level = 0;
+				bool nextScope = false;
+				Token scopeToken = null;
+				foreach(Token tok in tokens)
+				{
+					if(nextScope)
+					{
+						scopeToken = tok;
+						break;
+					}
+					
+					if(level == 0 && tok.Type == TokenTypes.COMMA)
+					{
+						nextScope = true;
+						continue;
+					}
+					if (tok.Type == TokenTypes.RPAREN)
+						level--;
+					if (tok.Type == TokenTypes.LPAREN)
+						level++;
+				}
+
+				if (scopeToken != null)
+				{
+					if (scopeToken.Type != TokenTypes.QUOTE)
+						throw new ParserException(string.Format(Strings.Parser_ErrorP_ScopeMustConstant, scopeToken.Value));
+					inAggregateDataSet = this.idLookup.ScopeDataSet(scopeToken.Value);
+					if (inAggregateDataSet == null)
+						throw new ParserException(string.Format(Strings.Parser_ErrorP_ScopeNotKnownDataSet, scopeToken.Value));
+				}
+			}
 
             List<IExpr> largs = new List<IExpr>();
 			while(true)
@@ -593,8 +622,7 @@ namespace fyiReporting.RDL
 			}
 			if (_InAggregate)
 			{
-				ResolveFields(method, this._FieldResolve, largs);
-				_FieldResolve = null;
+				inAggregateDataSet = null;
 				_InAggregate = false;
 			}
 
@@ -891,48 +919,6 @@ namespace fyiReporting.RDL
 					break;
 			}
 			return rc;
-		}
-
-		private void ResolveFields(string aggr, List<FunctionField> fargs, List<IExpr> args)
-		{
-			if (fargs == null || fargs.Count == 0)
-				return;
-
-			// get the scope argument offset 
-			int argOffset = aggr.ToLower() == "countrows"? 1: 2;
-			DataSetDefn ds;
-			if (args.Count == argOffset)
-			{
-				string dsname=null;
-				IExpr e = args[argOffset-1];
-				if (e is ConstantString)
-					dsname = e.EvaluateString(null, null);
-
-				if (dsname == null)
-					throw new ParserException(string.Format(Strings.Parser_ErrorP_ScopeMustConstant, aggr));
-				ds = this.idLookup.ScopeDataSet(dsname);
-				if (ds == null)
-					throw new ParserException(string.Format(Strings.Parser_ErrorP_ScopeNotKnownDataSet, dsname));
-			}
-			else
-			{
-				ds = this.idLookup.ScopeDataSet(null);
-				if (ds == null)
-					throw new ParserException(string.Format(Strings.Parser_ErrorP_NoScope4Aggregate, aggr));
-			}
-
-			foreach (FunctionField f in fargs)
-			{
-				if (f.Fld != null)
-					continue;
-
-                Field dsf = ds.Fields == null? null: ds.Fields[f.Name];
-				if (dsf == null)
-					throw new ParserException(string.Format(Strings.Parser_ErrorP_FieldNotInDataSet, f.Name, ds.Name.Nm));
-
-				f.Fld = dsf;
-			}
-			return;
 		}
 
 		private object ResolveAggrScope(IExpr[] args, int indexOfScope, out bool bSimple)
